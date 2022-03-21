@@ -1,0 +1,156 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="头文件\CudaUtils">
+      <UniqueIdentifier>{f40dece9-7539-4d6a-b2cd-89574195f71b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\CudaUtils">
+      <UniqueIdentifier>{0ea63833-be0c-4e2b-8249-c71776014c79}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\ZMath">
+      <UniqueIdentifier>{14be57d9-f8ba-42ef-bb69-6b4594540a7b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Component">
+      <UniqueIdentifier>{94cb8af3-5ba5-4fd5-b66b-462eb2996bfe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\Component">
+      <UniqueIdentifier>{2a00a07b-e412-4214-ade4-28f516b0ed7c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Interface">
+      <UniqueIdentifier>{14dd049f-4436-4561-9ba9-2483395fcb5a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\ext">
+      <UniqueIdentifier>{f6b106a4-e187-43e3-bb2f-fa084a229f10}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\ImageTool">
+      <UniqueIdentifier>{4e635d03-ea64-449a-977f-6b0fb01b42c3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CudaUtils\CudaSupport.h">
+      <Filter>头文件\CudaUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="ZMath\Core\CudaSupport.h">
+      <Filter>头文件\ZMath</Filter>
+    </ClInclude>
+    <ClInclude Include="ZMath\Core\Matrix4.h">
+      <Filter>头文件\ZMath</Filter>
+    </ClInclude>
+    <ClInclude Include="ZMath\Core\MatrixUtils.h">
+      <Filter>头文件\ZMath</Filter>
+    </ClInclude>
+    <ClInclude Include="ZMath\Core\Vec2.h">
+      <Filter>头文件\ZMath</Filter>
+    </ClInclude>
+    <ClInclude Include="ZMath\Core\Vec3.h">
+      <Filter>头文件\ZMath</Filter>
+    </ClInclude>
+    <ClInclude Include="ZMath\Core\Vec4.h">
+      <Filter>头文件\ZMath</Filter>
+    </ClInclude>
+    <ClInclude Include="ZMath\Core\VecUtils.h">
+      <Filter>头文件\ZMath</Filter>
+    </ClInclude>
+    <ClInclude Include="ZMath\Zmath.h">
+      <Filter>头文件\ZMath</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\BlinnPhongMaterial.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\Intersection.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\Ray.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\ObjLoader.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\IMaterial.h">
+      <Filter>头文件\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\IShape.h">
+      <Filter>头文件\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\ITexture.h">
+      <Filter>头文件\Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\BaseTexture.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\Scene.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\Triangle.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\Camera.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\AABB.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\Bvh.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\ResourceManager.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\Utils.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="Component\RandomEngine.h">
+      <Filter>头文件\Component</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="CudaUtils\CudaSupport.cpp">
+      <Filter>源文件\CudaUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="Component\BaseTexture.cpp">
+      <Filter>源文件\Component</Filter>
+    </ClCompile>
+    <ClCompile Include="Component\BlinnPhongMaterial.cpp">
+      <Filter>源文件\Component</Filter>
+    </ClCompile>
+    <ClCompile Include="Component\Triangle.cpp">
+      <Filter>源文件\Component</Filter>
+    </ClCompile>
+    <ClCompile Include="Component\Scene.cpp">
+      <Filter>源文件\Component</Filter>
+    </ClCompile>
+    <ClCompile Include="Lib\tinyxml2.cpp">
+      <Filter>源文件\ext</Filter>
+    </ClCompile>
+    <ClCompile Include="Component\AABB.cpp">
+      <Filter>源文件\Component</Filter>
+    </ClCompile>
+    <ClCompile Include="Component\Bvh.cpp">
+      <Filter>源文件\Component</Filter>
+    </ClCompile>
+    <ClCompile Include="Component\ResourceManager.cpp">
+      <Filter>源文件\Component</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageTool\ImageBuffer.cpp">
+      <Filter>源文件\ImageTool</Filter>
+    </ClCompile>
+    <ClCompile Include="Component\RandomEngine.cpp">
+      <Filter>源文件\Component</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
