@@ -187,7 +187,9 @@ void Scene::loadObj(const std::string& scene_name, const std::string& base_dir)
             tri->material = getMaterial(_materials[material_id].name);
             tri->initAABB();
             shapes.push_back(tri);
-            
+            /*if (tri->material->name() == "BackGround"|| tri->material->hasEmission()) {
+                shapes.push_back(tri);
+            }*/
 
             //auto file = files[tri->material->name()];
             //auto& offset = offsets[tri->material->name()];
@@ -201,9 +203,23 @@ void Scene::loadObj(const std::string& scene_name, const std::string& base_dir)
                 
             
             
-            
+            float last = 0;
             if (tri->material->hasEmission()) {
                 lights.push_back(tri);
+                float now_sum1 = light_diff_sum[tri->material->name()].empty() ? -1 : light_diff_sum[tri->material->name()].rbegin()->first;
+                if (now_sum1 == -1) {
+                    light_diff_sum[tri->material->name()][0] = tri;
+                } else {
+                    auto m1 = light_diff_sum[tri->material->name()].rbegin()->second->area();
+                    light_diff_sum[tri->material->name()][now_sum1 + m1] = tri;
+                }
+                float now_sum2 = lights_area_sum.empty() ? -1 : lights_area_sum.rbegin()->first;
+                if (now_sum2 == -1) {
+                    lights_area_sum[0] = tri;
+                } else {
+                    auto m2 = lights_area_sum.rbegin()->second->area();
+                    lights_area_sum[now_sum2 + m2] = tri;
+                }
             }
         }
     }
@@ -230,42 +246,49 @@ void Scene::render(int spp, const std::string& path)
     
     int proc_num = omp_get_num_procs();
     RandomEngineManager::getInstance().createEngines(proc_num);
+    std::cout << "Build BVH" << std::endl;
     bvh.build(shapes, proc_num);
     int t = 0;
+    std::cout << "Start Rendering\n" << "Use " << spp << " spp, " << proc_num << "threads" << std::endl;
 #pragma omp parallel num_threads(proc_num)
     {
         const auto thread_id = omp_get_thread_num();
 #pragma omp for 
         for (int x = 0; x < camera.width; ++x) {
             for (int y = 0; y < camera.height; ++y) {
-                auto& engine = RandomEngineManager::getInstance().getEngine(thread_id);
-                
-                Vec3f result;
-                for (int i = 0; i < spp; ++i) {
-                    Vec3f ray_dir(x + engine.sampleUniform(-0.5f, 0.5f) - half_w, y + engine.sampleUniform(-0.5f, 0.5f) - half_h, -dis);
-                    ray_dir.normalize();
-                    Ray ray(camera.position, inv_lookat * ray_dir);
-                    //auto tmp = castRay(ray, thread_id);
-                    //ZLib::clamp(0.f, 1.f, tmp);
-                    //result += tmp;
-                    //if(x==361&&y==629)
-                    result += castRay(ray, thread_id);
-                    if (std::isnan(result[0]) || std::isnan(result[1]) || std::isnan(result[2])) {
-                        printf("%d %d\n", x, y);
+                try {
+                    auto& engine = RandomEngineManager::getInstance().getEngine(thread_id);
+
+                    Vec3f result;
+                    for (int i = 0; i < spp; ++i) {
+                        Vec3f ray_dir(x + engine.sampleUniform(-0.5f, 0.5f) - half_w, y + engine.sampleUniform(-0.5f, 0.5f) - half_h, -dis);
+                        ray_dir.normalize();
+                        Ray ray(camera.position, inv_lookat * ray_dir);
+                        //auto tmp = castRay(ray, thread_id);
+                        //ZLib::clamp(0.f, 1.f, tmp);
+                        //result += tmp;
+                        //if(x<=64&&y<=256)
+                        result += castRay(ray, thread_id);
+                        if (std::isnan(result[0]) || std::isnan(result[1]) || std::isnan(result[2])) {
+                            printf("%d %d\n", x, y);
+                        }
+                        //result += castRay2(ray, thread_id);
+                        //auto a = castRay2(ray, thread_id);
+                        //auto b = castRay(ray, thread_id);
+                        //result += a;
                     }
-                    //result += castRay2(ray, thread_id);
-                    //auto a = castRay2(ray, thread_id);
-                    //auto b = castRay(ray, thread_id);
-                    //result += a;
+                    result /= spp;
+                    ZLib::clamp(0.f, 1.f, result);
+                    result = ZLib::pow(result, 1 / 2.2f);
+                    ZLib::Color color;
+                    color.r = result[0] * 255;
+                    color.g = result[1] * 255;
+                    color.b = result[2] * 255;
+                    image.setColor(x, y, color);
+                } catch (std::exception e) {
+                    std::cout << e.what() << std::endl;
                 }
-                result /= spp;
-                ZLib::clamp(0.f, 1.f, result);
-                result = ZLib::pow(result, 1 / 2.2f);
-                ZLib::Color color;
-                color.r = result[0] * 255;
-                color.g = result[1] * 255;
-                color.b = result[2] * 255;
-                image.setColor(x, y, color);
+                
             }
             updateProcess(1.0f * t / camera.width);
             ++t;
@@ -296,21 +319,33 @@ Intersection Scene::sampleLight(float& pdf, int engine_id)
 {
     Intersection ret;
     auto& engine = RandomEngineManager::getInstance().getEngine(engine_id);
-    float total_area = 0;
-    for (auto& light : lights) {
-        total_area += light->area();
-    }
+    auto riter = lights_area_sum.rbegin();
+    float total_area = riter->first + riter->second->area();
+    
     float p = total_area * engine.sampleUniform();
-    float tmp_area = 0;
-    for (auto& light : lights) {
-        tmp_area += light->area();
-        if (p <= tmp_area) {
-            light->sample(ret, pdf, engine_id);
-            pdf *= light->area() / total_area;
-            break;
-        }
-    }
+    auto iter = lights_area_sum.upper_bound(p);
+    --iter;
+    auto light = iter->second;
+    light->sample(ret, pdf, engine_id);
+    pdf *= light->area() / total_area ;
     return ret;
+}
+
+float Scene::lightPdf(const Intersection& pos, const Intersection& light)
+{
+    float pdf = 0;
+    auto riter = lights_area_sum.rbegin();
+    float total_area = riter->first + riter->second->area();
+    pdf = 1.0f / total_area;
+    auto p2x = (light.point - pos.point);
+    auto distance = p2x.squaredNorm();
+    p2x.normalize();
+    if (light.normal.dot(-p2x) > 0) {
+        pdf *= distance / light.normal.dot(-p2x);
+    } else {
+        return 0;
+    }
+    return pdf;
 }
 
 Intersection Scene::sampleLight2(float& pdf, int engine_id)
@@ -318,39 +353,46 @@ Intersection Scene::sampleLight2(float& pdf, int engine_id)
     float total_area = 0;
     Intersection ret;
     auto& engine = RandomEngineManager::getInstance().getEngine(engine_id);
-    std::set<std::string> material_names;
-    for (auto& light : lights) {
-        material_names.insert(light->material->name());
-    }
-    int k = std::floor(material_names.size() * engine.sampleUniform());
+    int k = std::min(light_diff_sum.size() - 1.0f, std::floor(light_diff_sum.size() * engine.sampleUniform()));
     int c = 0;
     std::string name;
-    for (auto& _name : material_names) {
+    for (auto& _name : light_diff_sum) {
         if (c == k) {
-            name = _name;
+            name = _name.first;
             break;
         }
         ++c;
     }
     float tmp_area = 0;
-    for (auto& light : lights) {
-        if (light->material->name() == name) {
-            total_area += light->area();
-        }
-    }
+    auto& sums = light_diff_sum[name];
+    auto riter = sums.rbegin();
+    total_area = riter->first + riter->second->area();
     float p = total_area * engine.sampleUniform();
-    for (auto& light : lights) {
-        if (light->material->name() == name) {
-            tmp_area += light->area();
-            if (p <= tmp_area) {
-                light->sample(ret, pdf, engine_id);
-                pdf *= light->area() / total_area / material_names.size();
-                break;
-            }
-        }
-        
-    }
+    auto iter = sums.upper_bound(p);
+    --iter;
+    auto light = iter->second;
+    light->sample(ret, pdf, engine_id);
+    pdf *= light->area() / total_area / light_diff_sum.size();
     return ret;
+}
+
+float Scene::lightPdf2(const Intersection& pos, const Intersection& light)
+{
+    auto& name = light.material->name();
+    float pdf = 0;
+    auto& sums = light_diff_sum[name];
+    auto riter = sums.rbegin();
+    float total_area = riter->first + riter->second->area();
+    pdf = 1.0f / total_area / light_diff_sum.size();
+    auto p2x = (light.point - pos.point);
+    auto distance = p2x.squaredNorm();
+    p2x.normalize();
+    if (light.normal.dot(-p2x) > 0) {
+        pdf *= distance / light.normal.dot(-p2x);
+    } else {
+        return 0;
+    }
+    return pdf;
 }
 
 ZLib::Vec3f Scene::castRay(const Ray& ray, int thread_id, int depth)
@@ -378,81 +420,85 @@ ZLib::Vec3f Scene::castRay(const Ray& ray, int thread_id, int depth)
     //    return castRay(Ray(intersection.point, wo), thread_id) * 0.9f / pdf;
     //}
     if (!intersection.material->canRefract()) {
-        //intersection.normal = intersection.normal.dot(-ray.dir) >= 0 ? intersection.normal : -intersection.normal;
+        intersection.normal = intersection.normal.dot(-ray.dir) >= 0 ? intersection.normal : -intersection.normal;
     }
     //return l0;
     Vec3f direct_l;
     {
-        float pdf_sum = 0;
         Vec3f light1, light3, light2;
-
         float pdf_light = 0;
-        Intersection pos;
-        pos = sampleLight(pdf_light, thread_id);
-        Vec3f p2x = (pos.point - intersection.point);
-        double distance = p2x.squaredNorm();
+        Intersection light_pos;
+        Vec3f p2x;
+        double distance;
+        light_pos = sampleLight(pdf_light, thread_id);
+        p2x = (light_pos.point - intersection.point);
+        distance = p2x.squaredNorm();
         p2x.normalize();
         //采样光源
         if (intersection.normal.dot(p2x) > 0) {
             Intersection tmp_inter = this->find(Ray(intersection.point, p2x), thread_id);
-            if ((tmp_inter.t >= (pos.point - intersection.point).norm() - 1e-3 && intersection.obj != tmp_inter.obj)) {
+            if (light_pos.obj==tmp_inter.obj&&light_pos.obj!=intersection.obj) {
                 //float tmp = std::max(0.0f, pos.normal.dot(-p2x) * intersection.normal.dot(p2x));
                 float tmp = std::max(0.0f, intersection.normal.dot(p2x));
                 //float tmp = std::abs(intersection.normal.dot(p2x));
-                pdf_light *= distance / std::max(1e-7f, pos.normal.dot(-p2x));
-                if (pdf_light > 0) {
-                    light1 = pos.material->emit() * intersection.material->brdf(-ray.dir, p2x, intersection.uv, intersection.normal) * tmp / (pdf_light);
-                }
+                float pdf1 = lightPdf(intersection, light_pos);
+                float pdf2 = lightPdf2(intersection, light_pos);
+                float pdf3 = intersection.material->pdf(-ray.dir, p2x, intersection.normal);
                 
+                if (pdf1 > 0) {
+                    float weight = pdf1 * pdf1 / (pdf1 * pdf1 + pdf2 * pdf2 + pdf3 * pdf3);
+                    //float weight = pdf1 * pdf1 / (pdf1 * pdf1 + pdf3 * pdf3);
+                    //float weight = 1;
+                    //printf("pdf1 %lf \n", weight);
+                    light1 = light_pos.material->emit() * intersection.material->brdf(-ray.dir, p2x, intersection.uv, intersection.normal) * tmp / pdf1 * weight;
+                }
             }
         }
 
-
-        pdf_sum += pdf_light * pdf_light;
-
         float pdf_light2 = 0;
-        pos = sampleLight2(pdf_light2, thread_id);
-        p2x = (pos.point - intersection.point);
+        light_pos = sampleLight2(pdf_light2, thread_id);
+        p2x = (light_pos.point - intersection.point);
         distance = p2x.squaredNorm();
         p2x.normalize();
         //采样光源
         if(intersection.normal.dot(p2x)>0){
             Intersection tmp_inter = this->find(Ray(intersection.point, p2x), thread_id);
-            if ((tmp_inter.t >= (pos.point - intersection.point).norm() - 1e-3 && intersection.obj != tmp_inter.obj)) {
+            if (light_pos.obj == tmp_inter.obj&&light_pos.obj!=intersection.obj) {
                 //float tmp = std::max(0.0f, pos.normal.dot(-p2x) * intersection.normal.dot(p2x));
                 float tmp = std::max(0.0f, intersection.normal.dot(p2x));
                 //float tmp = std::abs(intersection.normal.dot(p2x));
-                pdf_light2 *= distance / std::max(1e-7f, pos.normal.dot(-p2x));
-                if (pdf_light2 > 0) {
-                    light3 = pos.material->emit() * intersection.material->brdf(-ray.dir, p2x, intersection.uv, intersection.normal) * tmp / (pdf_light2);
+                float pdf1 = lightPdf(intersection, light_pos);
+                float pdf2 = lightPdf2(intersection, light_pos);
+                float pdf3 = intersection.material->pdf(-ray.dir, p2x, intersection.normal);
+                if (pdf2 > 0) {
+                    float weight = pdf2 * pdf2 / (pdf1 * pdf1 + pdf2 * pdf2 + pdf3 * pdf3);
+                    light3 = light_pos.material->emit() * intersection.material->brdf(-ray.dir, p2x, intersection.uv, intersection.normal) * tmp / pdf2 * weight;
                 }
-                
             }
         }
-        pdf_sum += pdf_light2 * pdf_light2;
 
         // 采样brdf
         float brdr_pdf = 0;
         bool is_refract;
         auto wo = intersection.material->sample(-ray.dir, intersection.normal, brdr_pdf, is_refract, thread_id);
         Ray new_ray(intersection.point, wo);
-        if (!is_refract) {
-            auto inter = find(new_ray, thread_id);
-            if (!isinf(inter.t) && inter.obj != intersection.obj && inter.material->hasEmission() && brdr_pdf > 0) {
-                auto p2x = intersection.point - inter.point;
-                auto dis = p2x.dot(p2x);
-                p2x.normalize();
-                if (brdr_pdf > 0) {
-                    light2 = inter.material->emit() * intersection.material->brdf(-ray.dir, wo, intersection.uv, intersection.normal) * std::max(0.f, intersection.normal.dot(wo)) / brdr_pdf;
+        if (!is_refract && intersection.normal.dot(wo) > 0) {
+            light_pos = find(new_ray, thread_id);
+            if (!isinf(light_pos.t) && light_pos.obj != intersection.obj && light_pos.material->hasEmission() && brdr_pdf > 0 && light_pos.normal.dot(-wo) > 0) {
+                float pdf1 = lightPdf(intersection, light_pos);
+                float pdf2 = lightPdf2(intersection, light_pos);
+                float pdf3 = intersection.material->pdf(-ray.dir, wo, intersection.normal);
+                if (pdf3 > 0) {
+                    float weight = pdf3 * pdf3 / (pdf1 * pdf1 + pdf2 * pdf2 + pdf3 * pdf3);
+                    //float weight = pdf3 * pdf3 / (pdf1 * pdf1 + pdf3 * pdf3);
+                    //std::cout << (brdr_pdf - pdf3) / pdf3 << endl;
+                    //printf("pdf3 %lf \n", weight);
+                    light2 = light_pos.material->emit() * intersection.material->brdf(-ray.dir, wo, intersection.uv, intersection.normal) * std::max(0.f, intersection.normal.dot(wo)) / pdf3 * weight;
                 }
-                
+
             }
         }
-        pdf_sum += brdr_pdf * brdr_pdf;
-        if (pdf_sum > 0) {
-            direct_l = (light1 * pdf_light * pdf_light + light3 * pdf_light2 * pdf_light2 + light2 * brdr_pdf * brdr_pdf) / pdf_sum;
-        }
-        
+        direct_l = light1 + light2 + light3;
 
     }
     //return direct_l;

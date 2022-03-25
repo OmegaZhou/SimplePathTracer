@@ -129,6 +129,7 @@ void Triangle::sample(Intersection& pos, float& pdf, int engine_id) const
 	pos.material = material;
 	pos.normal = normal[0] * w[0] + normal[1] * w[1] + normal[2] * w[2];
 	pos.uv = uv[0] * w[0] + uv[1] * w[1] + uv[2] * w[2];
+	pos.obj = this;
 	pdf = 1.0f / _area;
 }
 

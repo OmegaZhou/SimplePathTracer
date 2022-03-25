@@ -84,7 +84,7 @@ ZLib::Vec3f BlinnPhongMaterial::sample(const ZLib::Vec3f& wi, const ZLib::Vec3f&
         if (normal.dot(wo) <= 0) {
             pdf = 0;
         } else {
-            pdf += p * cos_theta / M_PI;
+            pdf += p * normal.dot(wo) / M_PI;
         }
         pdf *= (1 - refract_p);
         return wo;
@@ -127,12 +127,37 @@ ZLib::Vec3f BlinnPhongMaterial::brdf(const ZLib::Vec3f & wi, const ZLib::Vec3f &
     auto tmp = specular + diffuse;
     if (tmp[0] > 1 || tmp[1] > 1 || tmp[2] > 1) {
         //std::cout << "ddd";
-        specular = tmp - diffuse;
+        auto len = (specular + diffuse);
+
+        specular /= len;
+        diffuse /= len;
     }
     specular *= std::pow(cos_nh, ns);
 
     return  (diffuse / M_PI) + specular * ((ns + 2.0f) * (ns + 4.0f) / (8.0f * M_PI * (ns + std::pow(2.0, -ns / 2.0))));
     //return  (diffuse / M_PI) + specular * (ns + 2) / (2 * M_PI);
+}
+
+float BlinnPhongMaterial::pdf(const ZLib::Vec3f& wi, const ZLib::Vec3f& wo, const ZLib::Vec3f& normal) const
+{
+    if (normal.dot(wo) <= 0) {
+        return 0;
+    }
+    float pdf = 0;
+    float p = 1.0f;
+    if (ns > 1) {
+        p = 1.0f / (std::log10(ns) + 1.0f);
+    }
+    float cos_theta = normal.dot(wo);
+    pdf = p * cos_theta / M_PI;
+    if (ns > 1) {
+        auto half = wi + wo;
+        half.normalize();
+        auto tmp_cos1 = half.dot(normal);
+        auto tmp_cos2 = half.dot(wi);
+        pdf += (1 - p) * (ns + 2) / (2 * M_PI) * std::pow(tmp_cos1, ns + 1) / (4 * tmp_cos2);
+    }
+    return pdf;
 }
 
 
